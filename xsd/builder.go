@@ -250,13 +250,19 @@ func (b *builder) findType(name string) interface{} {
 	case "language", "Name", "token", "duration", "anyURI":
 		return "string"
 	case "long", "short", "integer", "int":
-		return "int"
+		return "int64"
 	case "unsignedShort":
 		return "uint16"
-	case "decimal":
+	case "decimal", "double":
 		return "float64"
 	case "dateTime":
 		return "time.Time"
+	case "date":
+		return "xsd.Date"
+	case "base64Binary":
+		return "[]byte"
+	case "positiveInteger":
+		return "uint64"
 	default:
 		return name
 	}

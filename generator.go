@@ -13,7 +13,7 @@ import (
 
 var (
 	// Struct field generated from an element attribute
-	attr = `{{ define "Attr" }}{{ printf "  %s " (lintTitle .Name) }}{{ printf "%s ` + "`xml:\\\"%s,attr,omitempty\\\" json:\\\",omitempty\\\"`" + `" (lint .Type) .Name }}
+	attr = `{{ define "Attr" }}{{ printf "  %s " (lintTitle .Name) }}{{ printf "%s ` + "`xml:\\\"%s,attr\\\" json:\\\",omitempty\\\"`" + `" (lint .Type) .Name }}
 {{ end }}`
 
 	// Struct field generated from an element child element
@@ -21,7 +21,7 @@ var (
 {{ end }}`
 
 	// Struct field generated from the character data of an element
-	cdata = `{{ define "Cdata" }}{{ printf "%s %s ` + "`xml:\\\",chardata,omitempty\\\" json:\\\",omitempty\\\"`" + `" (lintTitle .Name) (lint .Type) }}
+	cdata = `{{ define "Cdata" }}{{ printf "%s %s ` + "`xml:\\\",chardata\\\" json:\\\",omitempty\\\"`" + `" (lintTitle .Name) (lint .Type) }}
 {{ end }}`
 
 	// Struct generated from a non-trivial element (with children and/or attributes)
@@ -72,7 +72,8 @@ var (
 		"Xss", "XSS",
 	}
 
-	initialisms = strings.NewReplacer(initialismPairs...)
+	initialisms  = strings.NewReplacer(initialismPairs...)
+	builtinTypes = [20]string{"bool", "byte", "complex128", "complex64", "error", "float32", "float64", "int", "int16", "int32", "int64", "int8", "rune", "string", "uint", "uint16", "uint32", "uint64", "uint8", "uintptr"}
 )
 
 // Generator is responsible for generating Go structs based on a given XML
@@ -81,8 +82,7 @@ type generator struct {
 	pkg      string
 	prefix   string
 	exported bool
-
-	types map[string]struct{}
+	types    map[string]struct{}
 }
 
 func (g generator) do(out io.Writer, roots []*xsd.XmlTree) error {
@@ -144,18 +144,21 @@ func (g generator) execute(root *xsd.XmlTree, tt *template.Template, out io.Writ
 
 func prepareTemplates(prefix string, exported bool) (*template.Template, error) {
 	typeName := func(name string) string {
-		switch name {
-		case "bool", "string", "int", "float64", "time.Time":
-		default:
-			if prefix != "" {
-				name = prefix + strings.Title(name)
-			}
-			if exported {
-				name = strings.Title(name)
-			}
-			name = lint(name)
+		if isContainsPackage(name) {
+			return name
 		}
-		return name
+
+		if isBuiltinType(name) {
+			return name
+		}
+		if prefix != "" {
+			name = prefix + strings.Title(name)
+		}
+		if exported {
+			name = strings.Title(name)
+		}
+
+		return lint(name)
 	}
 
 	fmap := template.FuncMap{
@@ -181,6 +184,27 @@ func prepareTemplates(prefix string, exported bool) (*template.Template, error) 
 	return tt, nil
 }
 
+func isContainsPackage(typeName string) bool {
+	for _, ch := range typeName {
+		if ch == '.' {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isBuiltinType(typeName string) bool {
+	clearType := strings.TrimPrefix(typeName, "[]")
+	for _, t := range builtinTypes {
+		if clearType == t {
+			return true
+		}
+	}
+
+	return false
+}
+
 // If this is a chardata field, the field type must point to a
 // struct, even if the element type is a built-in primitive.
 func fieldType(e *xsd.XmlTree) string {
@@ -195,8 +219,7 @@ func primitiveType(e *xsd.XmlTree) bool {
 		return false
 	}
 
-	switch e.Type {
-	case "bool", "string", "int", "float64", "time.Time":
+	if isBuiltinType(e.Type) {
 		return true
 	}
 	return false

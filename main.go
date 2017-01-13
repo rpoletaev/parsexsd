@@ -35,16 +35,10 @@ to an XSD schema.
 
 func main() {
 	flag.StringVar(&output, "o", "/home/roma/projects/go/src/bitbucket.org/losaped/fillStructs/gen/gen.go", "Name of output file")
-	flag.StringVar(&pckg, "p", "goxsd", "Name of the Go package")
+	flag.StringVar(&pckg, "p", "gen", "Name of the Go package")
 	flag.StringVar(&prefix, "x", "", "Name of the Go package")
-	flag.BoolVar(&exported, "e", false, "Generate exported structs")
+	flag.BoolVar(&exported, "e", true, "Generate exported structs")
 	flag.Parse()
-
-	// if len(flag.Args()) != 1 {
-	// 	fmt.Println(usage)
-	// 	os.Exit(1)
-	// }
-	// xsdFile := flag.Arg(0)
 
 	s, err := parseXSDFile(fname)
 	if err != nil {
@@ -64,7 +58,7 @@ func main() {
 	gen := generator{
 		pkg:      pckg,
 		prefix:   prefix,
-		exported: exported,
+		exported: true, //TODO: set from flag
 	}
 
 	if err := gen.do(out, bldr.BuildXML()); err != nil {
