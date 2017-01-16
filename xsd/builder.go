@@ -1,9 +1,6 @@
 package xsd
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
 type builder struct {
 	schemas    []Schema
@@ -40,9 +37,7 @@ type xmlAttrib struct {
 func (b *builder) BuildXML() []*XmlTree {
 	var roots []Element
 	for _, s := range b.schemas {
-		for _, e := range s.Elements {
-			roots = append(roots, e)
-		}
+		roots = append(roots, s.Elements...)
 		for _, t := range s.ComplexTypes {
 			b.complTypes[t.Name] = t
 		}
@@ -52,6 +47,7 @@ func (b *builder) BuildXML() []*XmlTree {
 	}
 
 	var xelems []*XmlTree
+	//var xComplTypes []*XmlTree
 	for _, e := range roots {
 		xelems = append(xelems, b.BuildFromElement(e))
 	}
@@ -97,6 +93,10 @@ func (b *builder) BuildFromElement(e Element) *XmlTree {
 // buildFromComplexType takes an XmlTree and an xsdComplexType, containing
 // XSD type information for XmlTree enrichment.
 func (b *builder) BuildFromComplexType(xelem *XmlTree, t ComplexType) {
+	if t.Name != "" {
+		xelem.Type = t.Name
+	}
+
 	if t.Sequence != nil { // Does the element have children?
 		for _, e := range t.Sequence.GetAllElements() {
 			xelem.Children = append(xelem.Children, b.BuildFromElement(e))
@@ -240,7 +240,7 @@ func (b *builder) findType(name string) interface{} {
 	}
 	if t, ok := b.simplTypes[name]; ok {
 		println("has SimpleType with name ", name)
-		fmt.Printf("%v#\n", t)
+		// fmt.Printf("%v#\n", t)
 		return t
 	}
 

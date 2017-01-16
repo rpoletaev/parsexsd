@@ -238,6 +238,7 @@ func squish(s string) string {
 }
 
 func dashToCamel(name string) string {
+	name = strings.Replace(name, "_", "-", -1)
 	s := strings.Split(name, "-")
 	if len(s) > 1 {
 		for i := 1; i < len(s); i++ {
