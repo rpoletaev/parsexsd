@@ -52,6 +52,15 @@ func (b *builder) BuildXML() []*XmlTree {
 		xelems = append(xelems, b.BuildFromElement(e))
 	}
 
+	for _, t := range b.complTypes {
+		if t.Name != "" {
+			xelem := &XmlTree{
+				Name: t.Name,
+			}
+			b.BuildFromComplexType(xelem, t)
+			xelems = append(xelems, xelem)
+		}
+	}
 	return xelems
 }
 
@@ -59,8 +68,7 @@ func (b *builder) BuildXML() []*XmlTree {
 // traversing the XSD type information to build up an XML element hierarchy.
 func (b *builder) BuildFromElement(e Element) *XmlTree {
 	xelem := &XmlTree{Name: e.Name, Type: e.Name}
-	println("elementName: ", e.Name)
-	println("elementType: ", e.Type)
+
 	if IsList(e) {
 		xelem.List = true
 	}
@@ -235,11 +243,11 @@ func (b *builder) BuildFromAttributes(xelem *XmlTree, attrs []Attribute) {
 func (b *builder) findType(name string) interface{} {
 	name = stripNamespace(name)
 	if t, ok := b.complTypes[name]; ok {
-		println("has ComplexType with name ", name)
+		//println("has ComplexType with name ", name)
 		return t
 	}
 	if t, ok := b.simplTypes[name]; ok {
-		println("has SimpleType with name ", name)
+		//println("has SimpleType with name ", name)
 		// fmt.Printf("%v#\n", t)
 		return t
 	}

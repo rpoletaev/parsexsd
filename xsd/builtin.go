@@ -7,7 +7,7 @@ import (
 
 // DefaultXSDDateFormat стандартныое представление типа xs:date
 // https://www.w3.org/TR/xmlschema11-2/#date
-const DefaultXSDDateFormat = "2006.01.02"
+const DefaultXSDDateFormat = "2006-01-02"
 
 var defaultLocation *time.Location
 
@@ -21,7 +21,7 @@ type Date struct {
 
 // UnmarshalXMLAttr Позволяет правильно декодировать дату в формате "yyyy-mm-dd"
 func (c *Date) UnmarshalXMLAttr(attr xml.Attr) error {
-	t, err := time.ParseInLocation(DefaultXSDDateFormat, attr.Value, defaultLocation)
+	t, err := time.ParseInLocation(time.RFC3339, attr.Value, defaultLocation)
 	if err != nil {
 		return err
 	}
@@ -34,7 +34,7 @@ func (c *Date) UnmarshalXMLAttr(attr xml.Attr) error {
 func (c *Date) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	var v string
 	d.DecodeElement(&v, &start)
-	parse, err := time.ParseInLocation(DefaultXSDDateFormat, v, defaultLocation)
+	parse, err := time.ParseInLocation(time.RFC3339, v, defaultLocation)
 	if err != nil {
 		return err
 	}

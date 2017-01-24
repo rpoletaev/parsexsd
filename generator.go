@@ -101,7 +101,10 @@ func (g generator) do(out io.Writer, roots []*xsd.XmlTree) error {
 
 	for _, e := range roots {
 		if err := g.execute(e, tt, &res); err != nil {
-			return err
+			myerr := err.Error()
+			myerr += fmt.Sprintf("\n%+v\n", e)
+			myerr += fmt.Sprintln(tt.Name())
+			return fmt.Errorf(myerr)
 		}
 	}
 
@@ -112,6 +115,7 @@ func (g generator) do(out io.Writer, roots []*xsd.XmlTree) error {
 		TabWidth:  8,
 	})
 	if err != nil {
+		io.Copy(out, bytes.NewBuffer(res.Bytes()))
 		return err
 	}
 
@@ -134,6 +138,7 @@ func (g generator) execute(root *xsd.XmlTree, tt *template.Template, out io.Writ
 	for _, e := range root.Children {
 		if !primitiveType(e) {
 			if err := g.execute(e, tt, out); err != nil {
+				fmt.Printf("%+v", e)
 				return err
 			}
 		}
@@ -144,7 +149,7 @@ func (g generator) execute(root *xsd.XmlTree, tt *template.Template, out io.Writ
 
 func prepareTemplates(prefix string, exported bool) (*template.Template, error) {
 	typeName := func(name string) string {
-		if isContainsPackage(name) {
+		if isTime(name) {
 			return name
 		}
 
@@ -184,14 +189,8 @@ func prepareTemplates(prefix string, exported bool) (*template.Template, error) 
 	return tt, nil
 }
 
-func isContainsPackage(typeName string) bool {
-	for _, ch := range typeName {
-		if ch == '.' {
-			return true
-		}
-	}
-
-	return false
+func isTime(typeName string) bool {
+	return strings.HasPrefix(typeName, "time.") || strings.HasPrefix(typeName, "xsd.")
 }
 
 func isBuiltinType(typeName string) bool {
@@ -239,6 +238,8 @@ func squish(s string) string {
 
 func dashToCamel(name string) string {
 	name = strings.Replace(name, "_", "-", -1)
+	name = strings.Replace(name, ".", "-", -1)
+
 	s := strings.Split(name, "-")
 	if len(s) > 1 {
 		for i := 1; i < len(s); i++ {
