@@ -2,18 +2,56 @@ package xsd
 
 import (
 	"encoding/xml"
+	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 )
+
+type Document struct {
+	Comment string `xml:",comment"`
+	Schema  Schema
+}
 
 // Schema is the root of our Go representation of an XSD schema.
 // http://www.w3schools.com/xml/el_schema.asp
 type Schema struct {
 	XMLName      xml.Name
 	Ns           string        `xml:"xmlns,attr"`
+	Comment      string        `xml:",comment"`
 	Imports      []Import      `xml:"import"`
 	Elements     []Element     `xml:"element"`
 	ComplexTypes []ComplexType `xml:"complexType"`
 	SimpleTypes  []SimpleType  `xml:"simpleType"`
+	version      Version
+}
+
+// ExtractVersion gets comment from parrent document and parse it to get version
+func (s *Schema) ExtractVersion(docComment string) error {
+	//<!-- FCS INTEGRATION_TYPES Integration Scheme, version 4.4.0, create date 21.07.2014 -->
+	re := regexp.MustCompile(`version ([\d+\.?]+)`)
+	m := re.FindStringSubmatch(docComment)
+	if len(m) == 2 {
+		return fmt.Errorf("Схема версии не указана")
+	}
+
+	splitMatch := strings.Split(m[1], ".")
+	s.version = make([]int, len(splitMatch))
+	for i, val := range splitMatch {
+		intVal, err := strconv.Atoi(strings.TrimSpace(val))
+		if err != nil {
+			return fmt.Errorf("Неправильный формат версии xsd")
+		}
+
+		s.version[i] = intVal
+	}
+
+	return nil
+}
+
+//GetVersion returns schema version
+func (s Schema) GetVersion() Version {
+	return s.version
 }
 
 // Import http://www.w3schools.com/xml/el_import.asp
@@ -30,6 +68,54 @@ func (s Schema) NS() string {
 	}
 	return ""
 }
+
+// Version represents slice of version numbers from major to minor
+type Version []int
+
+// String implements of Stringer interface
+func (v Version) String() string {
+	res := ""
+	if len(v) == 0 {
+		return res
+	}
+
+	for i, val := range v {
+		if i < len(v)-1 {
+			res += strconv.Itoa(val) + "."
+		}
+	}
+
+	res += strconv.Itoa(v[len(v)-1])
+	return res
+}
+
+// GetVersion try parse version comment if comment exists and returns version value or returns error
+// func (s Schema) GetVersion() (Version, error) {
+// 	if s.Comment == "" {
+// 		fmt.Printf("%+v\n", s)
+// 		return nil, fmt.Errorf("Схема версии не указана")
+// 	}
+
+// 	//<!-- FCS INTEGRATION_TYPES Integration Scheme, version 4.4.0, create date 21.07.2014 -->
+// 	re := regexp.MustCompile(`version ([\d+\.?]+)`)
+// 	m := re.FindStringSubmatch(s.Comment)
+// 	if len(m) == 2 {
+// 		return nil, fmt.Errorf("Схема версии не указана")
+// 	}
+
+// 	splitMatch := strings.Split(m[1], ".")
+// 	version := make([]int, len(splitMatch))
+// 	for i, val := range splitMatch {
+// 		intVal, err := strconv.Atoi(strings.TrimSpace(val))
+// 		if err != nil {
+// 			return nil, fmt.Errorf("Неправильный формат версии xsd")
+// 		}
+
+// 		version[i] = intVal
+// 	}
+
+// 	return version, nil
+// }
 
 // HavingMaxOccurs represent types which contains MaxOccurs attribute
 type HavingMaxOccurs interface {

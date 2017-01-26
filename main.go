@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
@@ -39,7 +38,7 @@ to an XSD schema.
 
 func main() {
 	flag.StringVar(&output, "o", "/home/roma/projects/go/src/bitbucket.org/losaped/fillStructs/gen/gen.go", "Name of output file")
-	flag.StringVar(&pckg, "p", "gen", "Name of the Go package")
+	flag.StringVar(&pckg, "p", "main", "Name of the Go package")
 	flag.StringVar(&prefix, "x", "", "Name of the Go package")
 	flag.BoolVar(&exported, "e", true, "Generate exported structs")
 	flag.Parse()
@@ -71,8 +70,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	ver := s[0].GetVersion()
 	if out != os.Stdout {
-		exec.Command("go", "build", "-buildmode=plugin", "-o struct_plugin.so", "struct_plugin.go")
+		compiler := NewPluginCompiler("zakup_export_v"+ver.String(), output)
+		if err = compiler.BuildPlugin(); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -95,23 +98,30 @@ func makeCharsetReader(charset string, input io.Reader) (io.Reader, error) {
 		return charmap.Windows1251.NewDecoder().Reader(input), nil
 	}
 
-	return nil, fmt.Errorf("Unknown charset: '%s'", charset)
+	return nil, fmt.Errorf("Unsuported charset: '%s'", charset)
 }
 
 func parse(r io.Reader, fname string) ([]xsd.Schema, error) {
-	var schema xsd.Schema
+	var doc xsd.Document
+	//var schema xsd.Schema
 
 	d := xml.NewDecoder(r)
 	d.CharsetReader = makeCharsetReader
-	if err := d.Decode(&schema); err != nil {
+	if err := d.Decode(&doc); err != nil {
 		return nil, err
 	}
+	if doc.Comment == "" {
+		_, f := filepath.Split(fname)
+		return nil, fmt.Errorf("Не указана схема для документа: %s", f)
+	}
 
-	schemas := []xsd.Schema{schema}
+	doc.Schema.ExtractVersion(doc.Comment)
+	println("Schema version: ", doc.Schema.GetVersion().String())
+	schemas := []xsd.Schema{doc.Schema}
 	dir, file := filepath.Split(fname)
 	parsedFiles[file] = struct{}{}
 
-	for _, imp := range schema.Imports {
+	for _, imp := range doc.Schema.Imports {
 		if _, ok := parsedFiles[imp.Location]; ok {
 			continue
 		}
