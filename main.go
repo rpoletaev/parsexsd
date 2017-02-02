@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
@@ -20,8 +21,8 @@ import (
 var (
 	parsedFiles = make(map[string]struct{})
 
-	output, pckg, prefix string
-	exported             bool
+	repository, pckg, prefix string
+	exported                 bool
 
 	usage = `Usage: parsexsd [options] <xsd_file>
 
@@ -37,24 +38,33 @@ to an XSD schema.
 )
 
 func main() {
-	flag.StringVar(&output, "o", "/home/roma/projects/go/src/bitbucket.org/losaped/fillStructs/gen/gen.go", "Name of output file")
+	flag.StringVar(&repository, "o", "/root/go/src/bitbucket.org/losaped/goszakupki/repository", "Name of output file")
 	flag.StringVar(&pckg, "p", "main", "Name of the Go package")
 	flag.StringVar(&prefix, "x", "", "Name of the Go package")
 	flag.BoolVar(&exported, "e", true, "Generate exported structs")
 	flag.Parse()
 
 	xsdFile := flag.Args()[0] //"/home/roma/Загрузки/zakupki/scheme4.4/fcsExport.xsd"
-	s, err := parseXSDFile(xsdFile)
+	fdir, _ := filepath.Split(xsdFile)
+	version, err := xsd.GetSchemaVersion(filepath.Join(fdir, "IntegrationTypes.xsd"))
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	log.Println("Version is: ", version)
+	pluginDir := path.Join(repository, version.String())
+	//os.Mkdir(pluginDir, 0770)
+	output := path.Join(pluginDir, "plugin.go")
+	log.Println(output)
 	out := os.Stdout
-	if output != "" {
-		if out, err = os.Create(output); err != nil {
-			log.Errorln("Could not create or truncate output file:", output)
-			os.Exit(1)
-		}
+
+	if out, err = os.Create(output); err != nil {
+		log.Errorln("Could not create or truncate output file:", output)
+		os.Exit(1)
+	}
+
+	s, err := parseXSDFile(xsdFile)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	bldr := xsd.NewBuilder(s)
@@ -70,23 +80,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	ver := s[0].GetVersion()
-	if out != os.Stdout {
-		compiler := NewPluginCompiler("zakup_export_v"+ver.String(), output)
-		if err = compiler.BuildPlugin(); err != nil {
-			log.Fatal(err)
-		}
+	compiler := NewPluginCompiler("export"+version.String(), output)
+	if err = compiler.BuildPlugin(); err != nil {
+		println(err.Error())
+		log.Fatal(err)
 	}
-}
-
-func parseXSDFile(fname string) ([]xsd.Schema, error) {
-	f, err := os.Open(fname)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	return parse(f, fname)
 }
 
 func makeCharsetReader(charset string, input io.Reader) (io.Reader, error) {
@@ -101,27 +99,26 @@ func makeCharsetReader(charset string, input io.Reader) (io.Reader, error) {
 	return nil, fmt.Errorf("Unsuported charset: '%s'", charset)
 }
 
-func parse(r io.Reader, fname string) ([]xsd.Schema, error) {
-	var doc xsd.Document
-	//var schema xsd.Schema
+func parseXSDFile(fname string) ([]xsd.Schema, error) {
+	f, err := os.Open(fname)
+	if err != nil {
+		return nil, fmt.Errorf("Не удалось открыть файл: %s\n%v", fname, err)
+	}
+	defer f.Close()
 
-	d := xml.NewDecoder(r)
+	var schema xsd.Schema
+	d := xml.NewDecoder(f)
 	d.CharsetReader = makeCharsetReader
-	if err := d.Decode(&doc); err != nil {
+	if err := d.Decode(&schema); err != nil {
+		log.Println("Не удалось декодировать схему, ", fname)
 		return nil, err
 	}
-	if doc.Comment == "" {
-		_, f := filepath.Split(fname)
-		return nil, fmt.Errorf("Не указана схема для документа: %s", f)
-	}
 
-	doc.Schema.ExtractVersion(doc.Comment)
-	println("Schema version: ", doc.Schema.GetVersion().String())
-	schemas := []xsd.Schema{doc.Schema}
+	schemas := []xsd.Schema{schema}
 	dir, file := filepath.Split(fname)
 	parsedFiles[file] = struct{}{}
 
-	for _, imp := range doc.Schema.Imports {
+	for _, imp := range schema.Imports {
 		if _, ok := parsedFiles[imp.Location]; ok {
 			continue
 		}

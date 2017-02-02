@@ -100,7 +100,8 @@ func (g generator) do(out io.Writer, roots []*xsd.XmlTree) error {
 	}
 
 	fmt.Fprintf(&res, `import (
-		"plugin"
+		"time"
+		"github.com/rpoletaev/parsexsd/xsd"
 	)`)
 
 	for _, e := range roots {
@@ -131,16 +132,28 @@ func (g generator) do(out io.Writer, roots []*xsd.XmlTree) error {
 }
 
 func (g generator) execute(root *xsd.XmlTree, tt *template.Template, out io.Writer) error {
-	if _, ok := g.types[root.Name]; ok {
-		return nil
+	if root.Name != "unfairSupplier" {
+		if _, ok := g.types[root.Name]; ok {
+			return nil
+		}
 	}
+
+	// if strings.Contains(root.Name, "unfairSupplier") || strings.Contains(root.Name, "unfairSupplier") {
+	// 	println("********************************************************************************")
+	// 	fmt.Printf("root.Name: %s root.Type: %s\n", root.Name, root.Type)
+	// 	for _, child := range root.Children {
+	// 		fmt.Printf("%+v\n", *child)
+	// 	}
+	// 	println("********************************************************************************")
+	// }
 	if err := tt.Execute(out, root); err != nil {
 		return err
 	}
+
 	g.types[root.Name] = struct{}{}
 
 	for _, e := range root.Children {
-		if !primitiveType(e) {
+		if !primitiveType(e) && e.StructNeeded {
 			if err := g.execute(e, tt, out); err != nil {
 				fmt.Printf("%+v", e)
 				return err
@@ -153,7 +166,10 @@ func (g generator) execute(root *xsd.XmlTree, tt *template.Template, out io.Writ
 
 func prepareTemplates(prefix string, exported bool) (*template.Template, error) {
 	typeName := func(name string) string {
-		if isTime(name) {
+		// if name == "unfairSupplier" {
+		// 	println(name)
+		// }
+		if containsAllowedPackage(name) {
 			return name
 		}
 
@@ -193,7 +209,7 @@ func prepareTemplates(prefix string, exported bool) (*template.Template, error) 
 	return tt, nil
 }
 
-func isTime(typeName string) bool {
+func containsAllowedPackage(typeName string) bool {
 	return strings.HasPrefix(typeName, "time.") || strings.HasPrefix(typeName, "xsd.")
 }
 

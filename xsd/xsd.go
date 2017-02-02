@@ -1,17 +1,14 @@
 package xsd
 
 import (
+	"bufio"
 	"encoding/xml"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
-
-type Document struct {
-	Comment string `xml:",comment"`
-	Schema  Schema
-}
 
 // Schema is the root of our Go representation of an XSD schema.
 // http://www.w3schools.com/xml/el_schema.asp
@@ -23,36 +20,51 @@ type Schema struct {
 	Elements     []Element     `xml:"element"`
 	ComplexTypes []ComplexType `xml:"complexType"`
 	SimpleTypes  []SimpleType  `xml:"simpleType"`
-	version      Version
+	Version      Version
 }
 
-// ExtractVersion gets comment from parrent document and parse it to get version
-func (s *Schema) ExtractVersion(docComment string) error {
+//GetSchemaVersion parse file and returns version of xsd
+func GetSchemaVersion(fname string) (Version, error) {
 	//<!-- FCS INTEGRATION_TYPES Integration Scheme, version 4.4.0, create date 21.07.2014 -->
-	re := regexp.MustCompile(`version ([\d+\.?]+)`)
-	m := re.FindStringSubmatch(docComment)
-	if len(m) == 2 {
-		return fmt.Errorf("Схема версии не указана")
+	f, err := os.Open(fname)
+	if err != nil {
+		return nil, fmt.Errorf("Не удалось получить версию схемы: %s\n%v", fname, err)
+	}
+	defer f.Close()
+	reader := bufio.NewReader(f)
+
+	// comment with version must be on second line
+	reader.ReadString('\n')
+	comment, err := reader.ReadString('\n')
+	if err != nil {
+		return nil, fmt.Errorf("Не удалось получить версию схемы: %s\n%v", fname, err)
 	}
 
-	splitMatch := strings.Split(m[1], ".")
-	s.version = make([]int, len(splitMatch))
-	for i, val := range splitMatch {
-		intVal, err := strconv.Atoi(strings.TrimSpace(val))
-		if err != nil {
-			return fmt.Errorf("Неправильный формат версии xsd")
+	// println("comment is: ", comment)
+	if strings.HasPrefix(comment, "<!--") {
+		re := regexp.MustCompile(`version ([\d+\.?]+)`)
+		m := re.FindStringSubmatch(comment)
+		if len(m) != 2 {
+			return nil, fmt.Errorf("Схема версии не указана")
 		}
 
-		s.version[i] = intVal
+		splitMatch := strings.Split(m[1], ".")
+		version := make([]int, len(splitMatch))
+		for i, val := range splitMatch {
+			intVal, err := strconv.Atoi(strings.TrimSpace(val))
+			if err != nil {
+				return nil, fmt.Errorf("Неправильный формат версии xsd")
+			}
+			version[i] = intVal
+		}
+
+		return version, nil
 	}
-
-	return nil
+	return nil, fmt.Errorf("Version could not be found")
 }
 
-//GetVersion returns schema version
-func (s Schema) GetVersion() Version {
-	return s.version
-}
+// Version represents slice of version numbers from major to minor
+type Version []int
 
 // Import http://www.w3schools.com/xml/el_import.asp
 type Import struct {
@@ -68,9 +80,6 @@ func (s Schema) NS() string {
 	}
 	return ""
 }
-
-// Version represents slice of version numbers from major to minor
-type Version []int
 
 // String implements of Stringer interface
 func (v Version) String() string {
@@ -88,34 +97,6 @@ func (v Version) String() string {
 	res += strconv.Itoa(v[len(v)-1])
 	return res
 }
-
-// GetVersion try parse version comment if comment exists and returns version value or returns error
-// func (s Schema) GetVersion() (Version, error) {
-// 	if s.Comment == "" {
-// 		fmt.Printf("%+v\n", s)
-// 		return nil, fmt.Errorf("Схема версии не указана")
-// 	}
-
-// 	//<!-- FCS INTEGRATION_TYPES Integration Scheme, version 4.4.0, create date 21.07.2014 -->
-// 	re := regexp.MustCompile(`version ([\d+\.?]+)`)
-// 	m := re.FindStringSubmatch(s.Comment)
-// 	if len(m) == 2 {
-// 		return nil, fmt.Errorf("Схема версии не указана")
-// 	}
-
-// 	splitMatch := strings.Split(m[1], ".")
-// 	version := make([]int, len(splitMatch))
-// 	for i, val := range splitMatch {
-// 		intVal, err := strconv.Atoi(strings.TrimSpace(val))
-// 		if err != nil {
-// 			return nil, fmt.Errorf("Неправильный формат версии xsd")
-// 		}
-
-// 		version[i] = intVal
-// 	}
-
-// 	return version, nil
-// }
 
 // HavingMaxOccurs represent types which contains MaxOccurs attribute
 type HavingMaxOccurs interface {

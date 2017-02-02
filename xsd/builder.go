@@ -19,12 +19,13 @@ func NewBuilder(schemas []Schema) *builder {
 }
 
 type XmlTree struct {
-	Name     string
-	Type     string
-	List     bool
-	Cdata    bool
-	Attribs  []xmlAttrib
-	Children []*XmlTree
+	Name         string
+	Type         string
+	List         bool
+	Cdata        bool
+	Attribs      []xmlAttrib
+	Children     []*XmlTree
+	StructNeeded bool
 }
 
 type xmlAttrib struct {
@@ -39,7 +40,9 @@ func (b *builder) BuildXML() []*XmlTree {
 	for _, s := range b.schemas {
 		roots = append(roots, s.Elements...)
 		for _, t := range s.ComplexTypes {
-			b.complTypes[t.Name] = t
+			if t.Name != "" {
+				b.complTypes[t.Name] = t
+			}
 		}
 		for _, t := range s.SimpleTypes {
 			b.simplTypes[t.Name] = t
@@ -47,7 +50,6 @@ func (b *builder) BuildXML() []*XmlTree {
 	}
 
 	var xelems []*XmlTree
-	//var xComplTypes []*XmlTree
 	for _, e := range roots {
 		xelems = append(xelems, b.BuildFromElement(e))
 	}
@@ -55,7 +57,8 @@ func (b *builder) BuildXML() []*XmlTree {
 	for _, t := range b.complTypes {
 		if t.Name != "" {
 			xelem := &XmlTree{
-				Name: t.Name,
+				Name:         t.Name,
+				StructNeeded: true,
 			}
 			b.BuildFromComplexType(xelem, t)
 			xelems = append(xelems, xelem)
@@ -67,16 +70,21 @@ func (b *builder) BuildXML() []*XmlTree {
 // buildFromElement builds an XmlTree from an xsdElement, recursively
 // traversing the XSD type information to build up an XML element hierarchy.
 func (b *builder) BuildFromElement(e Element) *XmlTree {
-	xelem := &XmlTree{Name: e.Name, Type: e.Name}
+	xelem := &XmlTree{
+		Name:         e.Name,
+		Type:         e.Name,
+		StructNeeded: true,
+	}
 
 	if IsList(e) {
 		xelem.List = true
 	}
 
 	if !e.IsInlineType() {
+		xelem.StructNeeded = false
 		switch t := b.findType(e.Type).(type) {
 		case ComplexType:
-			b.BuildFromComplexType(xelem, t)
+			xelem.Type = t.Name
 		case SimpleType:
 			b.BuildFromSimpleType(xelem, t)
 		case string:
@@ -101,10 +109,6 @@ func (b *builder) BuildFromElement(e Element) *XmlTree {
 // buildFromComplexType takes an XmlTree and an xsdComplexType, containing
 // XSD type information for XmlTree enrichment.
 func (b *builder) BuildFromComplexType(xelem *XmlTree, t ComplexType) {
-	if t.Name != "" {
-		xelem.Type = t.Name
-	}
-
 	if t.Sequence != nil { // Does the element have children?
 		for _, e := range t.Sequence.GetAllElements() {
 			xelem.Children = append(xelem.Children, b.BuildFromElement(e))

@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}/parsexsd",
+            "env": {},
+            "args": ["/home/losaped/Загрузки/zakupki/6_4_схемы/fcsExport.xsd"],
+            "showLog": true
+        }
+    ]
+}
