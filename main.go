@@ -38,7 +38,7 @@ to an XSD schema.
 )
 
 func main() {
-	flag.StringVar(&repository, "o", "/root/go/src/bitbucket.org/losaped/goszakupki/repository", "Name of output file")
+	flag.StringVar(&repository, "o", "/go/src/bitbucket.org/losaped/goszakupki/repository", "Name of output file")
 	flag.StringVar(&pckg, "p", "main", "Name of the Go package")
 	flag.StringVar(&prefix, "x", "", "Name of the Go package")
 	flag.BoolVar(&exported, "e", true, "Generate exported structs")
