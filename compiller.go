@@ -17,6 +17,6 @@ func NewPluginCompiler(plugName, pathToSource string) *pluginCompiler {
 }
 
 func (p *pluginCompiler) BuildPlugin() error {
-	cmd := exec.Command("go", p.sourcePath, "build", "-buildmode=plugin", "-o", p.pluginName+".so")
+	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", p.pluginName+".so", p.sourcePath)
 	return cmd.Run()
 }
