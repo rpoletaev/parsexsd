@@ -53,7 +53,10 @@ func main() {
 	log.Println("Version is: ", version)
 	pluginDir := path.Join(repository, version.String())
 	if _, err = os.Stat(pluginDir); err != nil {
-		os.Mkdir(pluginDir, 0770)
+		log.Println("Plugin directory is not exsist: ", err)
+		if err = os.Mkdir(pluginDir, 0770); err != nil {
+			log.Println("Error on create plugin dir: ", err)
+		}
 	}
 
 	output := path.Join(pluginDir, "plugin.go")
