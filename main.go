@@ -54,7 +54,7 @@ func main() {
 	pluginDir := path.Join(repository, version.String())
 	if _, err = os.Stat(pluginDir); err != nil {
 		log.Println("Plugin directory is not exsist: ", err)
-		if err = os.Mkdir(pluginDir, 0770); err != nil {
+		if err = os.Mkdir(pluginDir, 0777); err != nil {
 			log.Println("Error on create plugin dir: ", err)
 		}
 	}
@@ -67,6 +67,7 @@ func main() {
 		log.Errorln("Could not create or truncate output file:", output)
 		os.Exit(1)
 	}
+	defer out.Close()
 
 	s, err := parseXSDFile(xsdFile)
 	if err != nil {
@@ -86,7 +87,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	compiler := NewPluginCompiler("export"+version.String(), output)
+	compiler := NewPluginCompiler(path.Join(pluginDir, "export"), output)
 	if err = compiler.BuildPlugin(); err != nil {
 		println(err.Error())
 		log.Fatal(err)

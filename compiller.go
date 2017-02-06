@@ -11,12 +11,14 @@ type pluginCompiler struct {
 // NewPluginCompiler creates and returns new pluginCompiler
 func NewPluginCompiler(plugName, pathToSource string) *pluginCompiler {
 	return &pluginCompiler{
-		pluginName: plugName,
+		pluginName: plugName + ".so",
 		sourcePath: pathToSource,
 	}
 }
 
 func (p *pluginCompiler) BuildPlugin() error {
-	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", p.pluginName+".so", p.sourcePath)
+	println("pluginName ", p.pluginName)
+	println("sourcePath ", p.sourcePath)
+	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", p.pluginName, p.sourcePath)
 	return cmd.Run()
 }
