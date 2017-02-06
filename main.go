@@ -52,7 +52,10 @@ func main() {
 	}
 	log.Println("Version is: ", version)
 	pluginDir := path.Join(repository, version.String())
-	//os.Mkdir(pluginDir, 0770)
+	if _, err = os.Stat(pluginDir); err != nil {
+		os.Mkdir(pluginDir, 0770)
+	}
+
 	output := path.Join(pluginDir, "plugin.go")
 	log.Println(output)
 	out := os.Stdout
